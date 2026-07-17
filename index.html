@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Arcade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #140f2b;
+    --bg-2: #1a1440;
+    --panel: #1e1740;
+    --panel-edge: #342a63;
+    --pink: #ff5fa2;
+    --pink-soft: #ff9ac9;
+    --cyan: #4fe3da;
+    --cyan-soft: #9df3ee;
+    --yellow: #ffd54a;
+    --text: #f5f1ff;
+    --muted: #a99fd1;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+  }
+
+  body {
+    background:
+      radial-gradient(1200px 600px at 15% -10%, #241a55 0%, transparent 60%),
+      radial-gradient(1000px 700px at 110% 10%, #1c2a5c 0%, transparent 55%),
+      var(--bg);
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 48px 20px 64px;
+  }
+
+  .stage {
+    width: 100%;
+    max-width: 1040px;
+  }
+
+  .marquee {
+    text-align: center;
+    margin-bottom: 56px;
+  }
+
+  .eyebrow {
+    font-size: 0.8rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--cyan-soft);
+    margin: 0 0 10px;
+  }
+
+  h1 {
+    font-family: 'Fredoka', sans-serif;
+    font-weight: 700;
+    font-size: clamp(2.4rem, 6vw, 4.2rem);
+    margin: 0;
+    letter-spacing: 0.01em;
+    background: linear-gradient(180deg, #ffffff 0%, var(--cyan-soft) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: 0 0 40px rgba(79, 227, 218, 0.25);
+  }
+
+  .tagline {
+    margin: 12px 0 0;
+    color: var(--muted);
+    font-size: 1rem;
+  }
+
+  .cabinet-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 28px;
+    padding: 0;
+  }
+
+  .tile {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    color: var(--text);
+    padding: 8px 0 0;
+  }
+
+  .tile-bubble {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    isolation: isolate;
+    transition: transform 0.35s cubic-bezier(.34,1.56,.64,1), box-shadow 0.35s ease;
+  }
+
+  .tile--live .tile-bubble {
+    background:
+      radial-gradient(circle at 30% 26%, rgba(255,255,255,0.85), rgba(255,255,255,0) 32%),
+      radial-gradient(circle at 70% 75%, var(--pink-soft), transparent 60%),
+      linear-gradient(160deg, var(--pink) 0%, #b8397a 100%);
+    box-shadow:
+      inset 0 0 0 2px rgba(255,255,255,0.25),
+      0 12px 30px -10px rgba(255, 95, 162, 0.55);
+  }
+
+  .tile--soon .tile-bubble {
+    background: transparent;
+    border: 2px dashed var(--panel-edge);
+  }
+
+  .tile-icon {
+    font-size: 2.6rem;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.25));
+  }
+
+  .tile--soon .tile-icon {
+    font-size: 2rem;
+    color: var(--panel-edge);
+  }
+
+  .tile-label {
+    margin-top: 16px;
+    font-family: 'Fredoka', sans-serif;
+    font-weight: 600;
+    font-size: 1.05rem;
+    text-align: center;
+  }
+
+  .tile-sub {
+    margin-top: 4px;
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+
+  .tile--live:hover .tile-bubble,
+  .tile--live:focus-visible .tile-bubble {
+    transform: translateY(-6px) scale(1.04);
+    box-shadow:
+      inset 0 0 0 2px rgba(255,255,255,0.35),
+      0 20px 40px -12px rgba(255, 95, 162, 0.7);
+  }
+
+  /* rising bubble pop effect, only on the live tile */
+  .tile--live .tile-bubble::before,
+  .tile--live .tile-bubble::after {
+    content: "";
+    position: absolute;
+    bottom: 10%;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #fff, var(--cyan-soft) 70%);
+    opacity: 0;
+  }
+
+  .tile--live .tile-bubble::before { left: 24%; }
+  .tile--live .tile-bubble::after  { left: 62%; width: 7px; height: 7px; }
+
+  .tile--live:hover .tile-bubble::before {
+    animation: rise-pop 1.1s ease-out 0.05s;
+  }
+  .tile--live:hover .tile-bubble::after {
+    animation: rise-pop 1s ease-out 0.3s;
+  }
+
+  @keyframes rise-pop {
+    0%   { opacity: 0; transform: translateY(0) scale(0.6); }
+    15%  { opacity: 0.9; }
+    75%  { opacity: 0.7; }
+    100% { opacity: 0; transform: translateY(-90px) scale(1.3); }
+  }
+
+  .tile:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 6px;
+    border-radius: 50%;
+  }
+
+  .foot-note {
+    text-align: center;
+    margin-top: 56px;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tile-bubble, .tile--live .tile-bubble::before, .tile--live .tile-bubble::after {
+      transition: none !important;
+      animation: none !important;
+    }
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <header class="marquee">
+      <p class="eyebrow">Insert coin</p>
+      <h1>My Arcade</h1>
+      <p class="tagline">Pick a bubble to start playing.</p>
+    </header>
+
+    <main class="cabinet-grid">
+      <a class="tile tile--live" href="bubble-pop-party/index.html">
+        <span class="tile-bubble">
+          <span class="tile-icon" aria-hidden="true">🫧</span>
+        </span>
+        <span class="tile-label">Bubble Pop Party</span>
+        <span class="tile-sub">Play now</span>
+      </a>
+
+      <div class="tile tile--soon" aria-hidden="true">
+        <span class="tile-bubble">
+          <span class="tile-icon">+</span>
+        </span>
+        <span class="tile-label">Next game</span>
+        <span class="tile-sub">Coming soon</span>
+      </div>
+
+      <div class="tile tile--soon" aria-hidden="true">
+        <span class="tile-bubble">
+          <span class="tile-icon">+</span>
+        </span>
+        <span class="tile-label">Next game</span>
+        <span class="tile-sub">Coming soon</span>
+      </div>
+    </main>
+
+    <p class="foot-note">New games get added here over time — check back for more.</p>
+  </div>
+</body>
+</html>
