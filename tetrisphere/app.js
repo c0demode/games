@@ -129,10 +129,31 @@ sphereGroup.add(rayTarget);
   scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0x5566aa, size: 0.07 })));
 }
 
+// ---------- curved tiles: true spherical patches, not flat squares ----------
+// Every block is a patch cut from the sphere itself (three.js SphereGeometry
+// with a per-cell longitude/latitude window), so tiles genuinely fit the
+// sphere — no overlap or pinching at the poles. One canonical patch is
+// built around direction (-1,0,0); each instance rotates it into place and
+// scales it to its layer radius.
+const DTH = ((Math.PI * 2) / COLS) * 0.88; // longitude kept per cell (rest = grout)
+const DPH = (Math.PI / ROWS) * 0.88; // latitude kept per cell
+function canonicalPatch(dth, dph) {
+  return new THREE.SphereGeometry(
+    1, 6, 4,
+    -dth / 2, dth, // phiStart, phiLength (longitude window)
+    Math.PI / 2 - dph / 2, dph // thetaStart, thetaLength (latitude window)
+  );
+}
+const blockGeo = canonicalPatch(DTH, DPH);
+const NEG_X = new THREE.Vector3(-1, 0, 0);
+// unit direction of a cell center — same convention the engine/logic uses
+function dirRC(r, c, out) {
+  const th = ((c + 0.5) / COLS) * Math.PI * 2;
+  const ph = ((r + 0.5) / ROWS) * Math.PI;
+  return out.set(Math.sin(ph) * Math.cos(th), Math.cos(ph), Math.sin(ph) * Math.sin(th));
+}
+
 // instanced blocks, one mesh per tetromino shape/color
-const cellW = (2 * Math.PI * R) / COLS;
-const cellH = (Math.PI * R) / ROWS;
-const blockGeo = new THREE.PlaneGeometry(cellW * 0.9, cellH * 0.9);
 const MAXI = COLS * ROWS * MAX_CELL_LAYERS;
 const meshes = {};
 for (const s of SHAPE_LIST) {
@@ -148,19 +169,8 @@ for (const s of SHAPE_LIST) {
   meshes[s] = m;
 }
 
-const _p = new THREE.Vector3(), _n = new THREE.Vector3(), _q = new THREE.Quaternion();
-const _z = new THREE.Vector3(0, 0, 1), _d = new THREE.Object3D();
-
-function sphPoint(r, c, rad, out) {
-  const theta = ((c + 0.5) / COLS) * Math.PI * 2;
-  const phi = ((r + 0.5) / ROWS) * Math.PI;
-  out.set(
-    rad * Math.sin(phi) * Math.cos(theta),
-    rad * Math.cos(phi),
-    rad * Math.sin(phi) * Math.sin(theta)
-  );
-  return out;
-}
+const _dir = new THREE.Vector3(), _q = new THREE.Quaternion();
+const _d = new THREE.Object3D();
 
 function rebuildInstances() {
   const counts = {};
@@ -174,11 +184,11 @@ function rebuildInstances() {
       if (!piece) continue;
       const mesh = meshes[piece.shape];
       const i = counts[piece.shape]++;
-      sphPoint(r, c, R + l * LAYER_H, _p);
-      _n.copy(_p).normalize();
-      _q.setFromUnitVectors(_z, _n);
-      _d.position.copy(_p);
+      dirRC(r, c, _dir);
+      _q.setFromUnitVectors(NEG_X, _dir);
+      _d.position.set(0, 0, 0);
       _d.quaternion.copy(_q);
+      _d.scale.setScalar(R + l * LAYER_H);
       _d.updateMatrix();
       mesh.setMatrixAt(i, _d.matrix);
     }
@@ -190,7 +200,8 @@ function rebuildInstances() {
 }
 
 // ---------- cursor ----------
-const cursorGeo = new THREE.PlaneGeometry(cellW * 1.04, cellH * 1.04);
+// cursor markers are full-cell spherical patches hovering just off the surface
+const cursorGeo = canonicalPatch(((Math.PI * 2) / COLS) * 0.99, (Math.PI / ROWS) * 0.99);
 const cursorMat = new THREE.MeshBasicMaterial({
   color: 0x3dff73, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false,
 });
@@ -223,10 +234,10 @@ function updateCursor() {
   fp.forEach(([r, c], i) => {
     const m = cursorMeshes[i];
     const l = Math.min(topLayerAt(state, r, c) + 1, state.layers);
-    sphPoint(r, c, R + l * LAYER_H + 0.045, _p);
-    _n.copy(_p).normalize();
-    m.position.copy(_p);
-    m.quaternion.setFromUnitVectors(_z, _n);
+    dirRC(r, c, _dir);
+    m.position.set(0, 0, 0);
+    m.quaternion.setFromUnitVectors(NEG_X, _dir);
+    m.scale.setScalar(R + l * LAYER_H + 0.035);
     m.visible = true;
   });
 }
